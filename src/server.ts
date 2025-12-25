@@ -20,15 +20,14 @@ const REFRESH_COOKIE = "refreshToken";
 const ACCESS_TTL_MS = 15 * 60 * 1000; // 15m
 const REFRESH_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14d
 
-type DemoScenario = "new" | "existing";
-
+type DemoScenario = "noPet" | "hasPet";
 type DemoLoginBody = {
   scenario?: DemoScenario;
 };
 
 type AccessPayload = {
   memberId: number;
-  isNewUser: boolean;
+  hasPet: boolean;
 };
 
 type RefreshPayload = {
@@ -47,8 +46,19 @@ function cookieOpt(maxAgeMs: number) {
 
 // demo 규칙: 서버가 시나리오를 결정
 function resolveDemoScenario(scenario?: DemoScenario): AccessPayload {
-  if (scenario === "existing") return { memberId: 2, isNewUser: false };
-  return { memberId: 1, isNewUser: true };
+  switch (scenario) {
+    case "hasPet":
+      return { memberId: 2, hasPet: true };
+    case "noPet":
+    default:
+      return { memberId: 1, hasPet: false };
+  }
+}
+
+// refresh에서 복원 규칙(SSOT)
+function resolveByMemberId(memberId: number): AccessPayload {
+  if (memberId === 1) return { memberId: 1, hasPet: false };
+  return { memberId: 2, hasPet: true };
 }
 
 function signAccessToken(payload: AccessPayload) {
@@ -61,16 +71,16 @@ function signRefreshToken(payload: RefreshPayload) {
 
 /**
  * POST /api/auth/demo-login
- * body: { scenario: "new" | "existing" }
+ * body: { scenario: "noPet" | "hasPet" }
  * - AT/RT HttpOnly 쿠키 심기
  */
 app.post(
   "/api/auth/demo-login",
   (req: Request<unknown, unknown, DemoLoginBody>, res: Response) => {
-    const { memberId, isNewUser } = resolveDemoScenario(req.body?.scenario);
+    const payload = resolveDemoScenario(req.body?.scenario);
 
-    const at = signAccessToken({ memberId, isNewUser });
-    const rt = signRefreshToken({ memberId });
+    const at = signAccessToken(payload);
+    const rt = signRefreshToken({ memberId: payload.memberId });
 
     res.cookie(ACCESS_COOKIE, at, cookieOpt(ACCESS_TTL_MS));
     res.cookie(REFRESH_COOKIE, rt, cookieOpt(REFRESH_TTL_MS));
@@ -81,7 +91,7 @@ app.post(
 
 /**
  * GET /api/auth/me
- * - AT 검증 → { memberId, isNewUser }
+ * - AT 검증 → { memberId, hasPet }
  */
 app.get("/api/auth/me", (req: Request, res: Response) => {
   const at = req.cookies?.[ACCESS_COOKIE] as string | undefined;
@@ -94,7 +104,7 @@ app.get("/api/auth/me", (req: Request, res: Response) => {
     return res.status(200).json({
       ok: true,
       memberId: decoded.memberId,
-      isNewUser: decoded.isNewUser,
+      hasPet: decoded.hasPet,
     });
   } catch {
     return res
@@ -106,7 +116,7 @@ app.get("/api/auth/me", (req: Request, res: Response) => {
 /**
  * POST /api/auth/refresh
  * - RT 검증 → 새 AT 재발급
- * - demo에서는 memberId 기반으로 isNewUser 복원(서버 규칙)
+ * - demo에서는 memberId 기반으로 hasPet 복원(서버 규칙)
  */
 app.post("/api/auth/refresh", (req: Request, res: Response) => {
   const rt = req.cookies?.[REFRESH_COOKIE] as string | undefined;
@@ -115,12 +125,9 @@ app.post("/api/auth/refresh", (req: Request, res: Response) => {
 
   try {
     const decoded = jwt.verify(rt, REFRESH_SECRET) as RefreshPayload;
-    const memberId = decoded.memberId;
+    const payload = resolveByMemberId(decoded.memberId);
 
-    // demo 규칙: memberId=1 신규, 2 기존
-    const isNewUser = memberId === 1;
-
-    const newAt = signAccessToken({ memberId, isNewUser });
+    const newAt = signAccessToken(payload);
     res.cookie(ACCESS_COOKIE, newAt, cookieOpt(ACCESS_TTL_MS));
 
     return res.status(200).json({ ok: true });
