@@ -138,6 +138,59 @@ app.post("/api/auth/refresh", (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/pets
+ * - AT 검증 → memberId 기반으로 pets 반환
+ * - demo: memberId=2일 때만 "기존 유저"로 간주하고 고정 목록 반환
+ */
+type Pet = {
+  id: number;
+  name: string;
+  type: "강아지" | "고양이" | "햄스터" | "조류" | "어류" | "파충류";
+  gender: "남아" | "여아" | "중성";
+  birthDate: string; // ISO string
+  isFavorite: boolean;
+};
+
+const DEMO_PETS_BY_MEMBER: Record<number, Pet[]> = {
+  2: [
+    {
+      id: 201,
+      name: "콩이",
+      type: "강아지",
+      gender: "남아",
+      birthDate: "2021-03-01",
+      isFavorite: true,
+    },
+    {
+      id: 202,
+      name: "보리",
+      type: "강아지",
+      gender: "여아",
+      birthDate: "2020-10-12",
+      isFavorite: false,
+    },
+  ],
+};
+
+app.get("/api/pets", (req: Request, res: Response) => {
+  const at = req.cookies?.[ACCESS_COOKIE] as string | undefined;
+  if (!at) {
+    return res.status(401).json({ ok: false, reason: "NO_ACCESS_TOKEN" });
+  }
+
+  try {
+    const decoded = jwt.verify(at, ACCESS_SECRET) as AccessPayload;
+
+    const pets = DEMO_PETS_BY_MEMBER[decoded.memberId] ?? [];
+    return res.status(200).json({ ok: true, pets });
+  } catch {
+    return res
+      .status(401)
+      .json({ ok: false, reason: "INVALID_OR_EXPIRED_ACCESS" });
+  }
+});
+
 // (선택) health
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ ok: true });
