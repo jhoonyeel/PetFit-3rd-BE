@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 
@@ -34,6 +34,27 @@ type RefreshPayload = {
   memberId: number;
 };
 
+/** -----------------------------
+ * ApiResponse (프론트와 포맷 통일)
+ * ----------------------------- */
+type ApiResponse<T> = {
+  success: boolean;
+  code: string;
+  message: string;
+  content: T | null;
+};
+
+function ok<T>(content: T, message = "OK", code = "OK"): ApiResponse<T> {
+  return { success: true, code, message, content };
+}
+
+function fail<T>(message: string, code: string): ApiResponse<T> {
+  return { success: false, code, message, content: null };
+}
+
+/** -----------------------------
+ * Cookie Options
+ * ----------------------------- */
 function cookieOpt(maxAgeMs: number) {
   return {
     httpOnly: true,
@@ -44,7 +65,9 @@ function cookieOpt(maxAgeMs: number) {
   };
 }
 
-// demo 규칙: 서버가 시나리오를 결정
+/** -----------------------------
+ * Demo 규칙: 서버가 시나리오 결정
+ * ----------------------------- */
 function resolveDemoScenario(scenario?: DemoScenario): AccessPayload {
   switch (scenario) {
     case "hasPet":
@@ -69,6 +92,32 @@ function signRefreshToken(payload: RefreshPayload) {
   return jwt.sign(payload, REFRESH_SECRET, { expiresIn: "14d" });
 }
 
+/** -----------------------------
+ * Access Guard Middleware
+ * - /api 보호 라우트에서 사용
+ * - req.auth에 AccessPayload 주입
+ * ----------------------------- */
+type AuthedRequest = Request & { auth?: AccessPayload };
+
+function requireAccess(req: AuthedRequest, res: Response, next: NextFunction) {
+  const at = req.cookies?.[ACCESS_COOKIE] as string | undefined;
+  if (!at) {
+    return res.status(401).json(fail("NO_ACCESS_TOKEN", "AUTH_401"));
+  }
+
+  try {
+    const decoded = jwt.verify(at, ACCESS_SECRET) as AccessPayload;
+    req.auth = decoded;
+    next();
+  } catch {
+    return res.status(401).json(fail("INVALID_OR_EXPIRED_ACCESS", "AUTH_401"));
+  }
+}
+
+/** -----------------------------
+ * Routes
+ * ----------------------------- */
+
 /**
  * POST /api/auth/demo-login
  * body: { scenario: "noPet" | "hasPet" }
@@ -85,7 +134,7 @@ app.post(
     res.cookie(ACCESS_COOKIE, at, cookieOpt(ACCESS_TTL_MS));
     res.cookie(REFRESH_COOKIE, rt, cookieOpt(REFRESH_TTL_MS));
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json(ok(null, "DEMO_LOGIN_OK", "AUTH_200"));
   }
 );
 
@@ -93,24 +142,9 @@ app.post(
  * GET /api/auth/me
  * - AT 검증 → { memberId, hasPet }
  */
-app.get("/api/auth/me", (req: Request, res: Response) => {
-  const at = req.cookies?.[ACCESS_COOKIE] as string | undefined;
-  if (!at)
-    return res.status(401).json({ ok: false, reason: "NO_ACCESS_TOKEN" });
-
-  try {
-    const decoded = jwt.verify(at, ACCESS_SECRET) as AccessPayload;
-
-    return res.status(200).json({
-      ok: true,
-      memberId: decoded.memberId,
-      hasPet: decoded.hasPet,
-    });
-  } catch {
-    return res
-      .status(401)
-      .json({ ok: false, reason: "INVALID_OR_EXPIRED_ACCESS" });
-  }
+app.get("/api/auth/me", requireAccess, (req: AuthedRequest, res: Response) => {
+  const { memberId, hasPet } = req.auth!;
+  return res.status(200).json(ok({ memberId, hasPet }, "ME_OK", "AUTH_200"));
 });
 
 /**
@@ -120,8 +154,9 @@ app.get("/api/auth/me", (req: Request, res: Response) => {
  */
 app.post("/api/auth/refresh", (req: Request, res: Response) => {
   const rt = req.cookies?.[REFRESH_COOKIE] as string | undefined;
-  if (!rt)
-    return res.status(401).json({ ok: false, reason: "NO_REFRESH_TOKEN" });
+  if (!rt) {
+    return res.status(401).json(fail("NO_REFRESH_TOKEN", "AUTH_401"));
+  }
 
   try {
     const decoded = jwt.verify(rt, REFRESH_SECRET) as RefreshPayload;
@@ -130,11 +165,9 @@ app.post("/api/auth/refresh", (req: Request, res: Response) => {
     const newAt = signAccessToken(payload);
     res.cookie(ACCESS_COOKIE, newAt, cookieOpt(ACCESS_TTL_MS));
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json(ok(null, "REFRESH_OK", "AUTH_200"));
   } catch {
-    return res
-      .status(401)
-      .json({ ok: false, reason: "INVALID_OR_EXPIRED_REFRESH" });
+    return res.status(401).json(fail("INVALID_OR_EXPIRED_REFRESH", "AUTH_401"));
   }
 });
 
@@ -148,7 +181,7 @@ type Pet = {
   name: string;
   type: "강아지" | "고양이" | "햄스터" | "조류" | "어류" | "파충류";
   gender: "남아" | "여아" | "중성";
-  birthDate: string; // ISO string
+  birthDate: string; // ISO string (YYYY-MM-DD)
   isFavorite: boolean;
 };
 
@@ -173,27 +206,15 @@ const DEMO_PETS_BY_MEMBER: Record<number, Pet[]> = {
   ],
 };
 
-app.get("/api/pets", (req: Request, res: Response) => {
-  const at = req.cookies?.[ACCESS_COOKIE] as string | undefined;
-  if (!at) {
-    return res.status(401).json({ ok: false, reason: "NO_ACCESS_TOKEN" });
-  }
-
-  try {
-    const decoded = jwt.verify(at, ACCESS_SECRET) as AccessPayload;
-
-    const pets = DEMO_PETS_BY_MEMBER[decoded.memberId] ?? [];
-    return res.status(200).json({ ok: true, pets });
-  } catch {
-    return res
-      .status(401)
-      .json({ ok: false, reason: "INVALID_OR_EXPIRED_ACCESS" });
-  }
+app.get("/api/pets", requireAccess, (req: AuthedRequest, res: Response) => {
+  const { memberId } = req.auth!;
+  const pets = DEMO_PETS_BY_MEMBER[memberId] ?? [];
+  return res.status(200).json(ok(pets, "PETS_OK", "PETS_200"));
 });
 
-// (선택) health
+// (선택) GET /api/health
 app.get("/api/health", (_req: Request, res: Response) => {
-  res.status(200).json({ ok: true });
+  res.status(200).json(ok({ ok: true }, "HEALTH_OK", "SYS_200"));
 });
 
 app.listen(PORT, () => {
