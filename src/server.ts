@@ -212,6 +212,47 @@ app.get("/api/pets", requireAccess, (req: AuthedRequest, res: Response) => {
   return res.status(200).json(ok(pets, "PETS_OK", "PETS_200"));
 });
 
+// GET /api/pets/:petId
+app.get(
+  "/api/pets/:petId",
+  requireAccess,
+  (req: AuthedRequest, res: Response) => {
+    const { memberId } = req.auth!;
+    const petId = Number(req.params.petId);
+
+    const pets = DEMO_PETS_BY_MEMBER[memberId] ?? [];
+    const pet = pets.find((p) => p.id === petId);
+
+    if (!pet) {
+      return res.status(404).json(fail("PET_NOT_FOUND", "PETS_404"));
+    }
+
+    return res.status(200).json(ok(pet, "PET_OK", "PETS_200"));
+  }
+);
+
+// GET /api/alarms/:petId/home
+app.get(
+  "/api/alarms/:petId/home",
+  requireAccess,
+  (req: AuthedRequest, res: Response) => {
+    const petId = Number(req.params.petId);
+    // demo: 일단 빈 배열
+    return res.status(200).json(ok([], "ALARMS_HOME_OK", "ALARM_200"));
+  }
+);
+
+// GET /api/remarks/:petId/home
+app.get(
+  "/api/remarks/:petId/home",
+  requireAccess,
+  (req: AuthedRequest, res: Response) => {
+    const petId = Number(req.params.petId);
+    // demo: 일단 빈 배열
+    return res.status(200).json(ok([], "REMARKS_HOME_OK", "REMARK_200"));
+  }
+);
+
 // (선택) GET /api/health
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json(ok({ ok: true }, "HEALTH_OK", "SYS_200"));
