@@ -1,5 +1,6 @@
 import type { DemoSession, DemoSessionScenario } from "../types/demo";
 import { DEMO_PETS_BY_MEMBER } from "./data";
+import { seedExistingScenario } from "./seedExisting";
 
 /* Demo Session Store (in-memory) */
 const demoSessions: Record<number, DemoSession> = {};
@@ -16,11 +17,17 @@ export function initDemoSession(
   scenario: DemoSessionScenario
 ) {
   if (scenario === "existing") {
+    const petIds = (DEMO_PETS_BY_MEMBER[memberId] ?? []).map((p) => p.id);
+
     demoSessions[memberId] = {
       scenario,
       onboarding: { petDone: true, routineDone: true },
       slotByPetId: {},
+      entriesByPetId: {},
+      alarmsByPetId: {},
     };
+
+    seedExistingScenario(demoSessions[memberId], petIds);
     return;
   }
 
@@ -29,6 +36,8 @@ export function initDemoSession(
     onboarding: { petDone: false, routineDone: false },
     pet: undefined,
     slotByPetId: {},
+    entriesByPetId: {},
+    alarmsByPetId: {},
   };
 }
 
