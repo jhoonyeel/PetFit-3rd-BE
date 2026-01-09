@@ -6,7 +6,7 @@ export const alarmsRouter = Router();
 
 // GET /api/alarms/:petId/home
 alarmsRouter.get(
-  "/api/alarms/:petId/home",
+  "/:petId/home",
   requireAccess,
   (req: AuthedRequest, res: Response) => {
     const petId = Number(req.params.petId);

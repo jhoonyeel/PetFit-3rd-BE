@@ -6,7 +6,7 @@ export const remarksRouter = Router();
 
 // GET /api/remarks/:petId/home
 remarksRouter.get(
-  "/api/remarks/:petId/home",
+  "/:petId/home",
   requireAccess,
   (req: AuthedRequest, res: Response) => {
     const petId = Number(req.params.petId);

@@ -7,7 +7,7 @@ import { fail, ok } from "../types/api";
 export const slotsRouter = Router();
 
 slotsRouter.post(
-  "/api/slots/:petId",
+  "/:petId",
   requireAccess,
   (req: AuthedRequest, res: Response) => {
     const { memberId } = req.auth!;

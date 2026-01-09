@@ -1,6 +1,6 @@
 import { Response, Router } from "express";
 import { AuthedRequest, requireAccess } from "../middlewares/requireAccess";
-import { ensureSession, getSession } from "../demo/store";
+import { getSession } from "../demo/store";
 import { fail, ok } from "../types/api";
 import { Pet } from "../types/demo";
 import { DEMO_PETS_BY_MEMBER } from "../demo/data";
@@ -12,22 +12,18 @@ export const petsRouter = Router();
  * - existing: 고정 목데이터
  * - new: demoSession.pet 기반
  */
-petsRouter.get(
-  "/api/pets",
-  requireAccess,
-  (req: AuthedRequest, res: Response) => {
-    const { memberId } = req.auth!;
-    const session = getSession(memberId);
+petsRouter.get("/", requireAccess, (req: AuthedRequest, res: Response) => {
+  const { memberId } = req.auth!;
+  const session = getSession(memberId);
 
-    if (session.scenario === "new") {
-      const pets = session.pet ? [session.pet] : [];
-      return res.status(200).json(ok(pets, "PETS_OK", "PETS_200"));
-    }
-
-    const pets = DEMO_PETS_BY_MEMBER[memberId] ?? [];
+  if (session.scenario === "new") {
+    const pets = session.pet ? [session.pet] : [];
     return res.status(200).json(ok(pets, "PETS_OK", "PETS_200"));
   }
-);
+
+  const pets = DEMO_PETS_BY_MEMBER[memberId] ?? [];
+  return res.status(200).json(ok(pets, "PETS_OK", "PETS_200"));
+});
 
 type CreatePetBody = {
   name: string;
@@ -37,46 +33,42 @@ type CreatePetBody = {
   isFavorite?: boolean;
 };
 
-petsRouter.post(
-  "/api/pets",
-  requireAccess,
-  (req: AuthedRequest, res: Response) => {
-    const { memberId } = req.auth!;
-    const session = getSession(memberId);
+petsRouter.post("/", requireAccess, (req: AuthedRequest, res: Response) => {
+  const { memberId } = req.auth!;
+  const session = getSession(memberId);
 
-    const body = req.body as CreatePetBody;
+  const body = req.body as CreatePetBody;
 
-    // 입력 검증(최소)
-    if (!body?.name || !body?.type || !body?.gender || !body?.birthDate) {
-      return res.status(400).json(fail("INVALID_PET_BODY", "PETS_400"));
-    }
-
-    // 온보딩 단계: 1회만 허용 (중복 생성 방지)
-    if (session.pet) {
-      return res.status(409).json(fail("PET_ALREADY_EXISTS", "PETS_409"));
-    }
-
-    const created: Pet = {
-      id: 101, // demo 고정(원하면 증가 로직)
-      name: body.name,
-      type: body.type,
-      gender: body.gender,
-      birthDate: body.birthDate,
-      isFavorite: body.isFavorite ?? true,
-    };
-
-    session.pet = created;
-    session.onboarding.petDone = true;
-    session.onboarding.routineDone = false;
-
-    // 프론트 PetApiResponse 기대 형태와 일치: { id, name, type, gender, birthDate, isFavorite }
-    return res.status(201).json(ok(created, "PET_CREATED", "PETS_201"));
+  // 입력 검증(최소)
+  if (!body?.name || !body?.type || !body?.gender || !body?.birthDate) {
+    return res.status(400).json(fail("INVALID_PET_BODY", "PETS_400"));
   }
-);
+
+  // 온보딩 단계: 1회만 허용 (중복 생성 방지)
+  if (session.pet) {
+    return res.status(409).json(fail("PET_ALREADY_EXISTS", "PETS_409"));
+  }
+
+  const created: Pet = {
+    id: 101, // demo 고정(원하면 증가 로직)
+    name: body.name,
+    type: body.type,
+    gender: body.gender,
+    birthDate: body.birthDate,
+    isFavorite: body.isFavorite ?? true,
+  };
+
+  session.pet = created;
+  session.onboarding.petDone = true;
+  session.onboarding.routineDone = false;
+
+  // 프론트 PetApiResponse 기대 형태와 일치: { id, name, type, gender, birthDate, isFavorite }
+  return res.status(201).json(ok(created, "PET_CREATED", "PETS_201"));
+});
 
 // GET /api/pets/:petId
 petsRouter.get(
-  "/api/pets/:petId",
+  "/:petId",
   requireAccess,
   (req: AuthedRequest, res: Response) => {
     const { memberId } = req.auth!;
