@@ -1,4 +1,4 @@
-import type { Pet } from "../types/demo";
+import type { Pet, Slot } from "../types/demo";
 
 export const DEMO_PETS_BY_MEMBER: Record<number, Pet[]> = {
   2: [
@@ -19,4 +19,16 @@ export const DEMO_PETS_BY_MEMBER: Record<number, Pet[]> = {
       isFavorite: false,
     },
   ],
+};
+
+export const DEFAULT_NEW_SLOT: Slot = {
+  feedActivated: true,
+  waterActivated: true,
+  walkActivated: false,
+  pottyActivated: true,
+  dentalActivated: false,
+  skinActivated: false,
+  feedAmount: 150,
+  waterAmount: 120,
+  walkAmount: 0,
 };

@@ -3,7 +3,7 @@ import { AuthedRequest, requireAccess } from "../middlewares/requireAccess";
 import { getSession } from "../demo/store";
 import { fail, ok } from "../types/api";
 import { Pet } from "../types/demo";
-import { DEMO_PETS_BY_MEMBER } from "../demo/data";
+import { DEFAULT_NEW_SLOT, DEMO_PETS_BY_MEMBER } from "../demo/data";
 
 export const petsRouter = Router();
 
@@ -57,6 +57,9 @@ petsRouter.post("/", requireAccess, (req: AuthedRequest, res: Response) => {
     birthDate: body.birthDate,
     isFavorite: body.isFavorite ?? true,
   };
+
+  // ✅ 신규 유저: 펫 생성 직후 기본 슬롯 강제 주입
+  session.slotByPetId[created.id] = DEFAULT_NEW_SLOT;
 
   session.pet = created;
   session.onboarding.petDone = true;
