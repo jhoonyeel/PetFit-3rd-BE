@@ -30,9 +30,10 @@ export type DemoSession = {
   onboarding: { petDone: boolean; routineDone: boolean };
   pet?: Pet;
   slotByPetId: Record<number, Slot | undefined>;
+  routinesByPetId?: Record<Pet["id"], Record<string, Routine[] | undefined>>;
 };
 
-type RoutineDto = {
+export type Routine = {
   routineId: number;
   category: "feed" | "water" | "walk" | "potty" | "dental" | "skin";
   status: "CHECKED" | "MEMO" | "UNCHECKED";
