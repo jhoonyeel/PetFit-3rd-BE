@@ -5,6 +5,7 @@ import { slotsRouter } from "./slots.route";
 import { alarmsRouter } from "./alarms.route";
 import { remarksRouter } from "./remarks.route";
 import { routinesRouter } from "./routines.route";
+import { entriesRouter } from "./entries.route";
 
 export const apiRouter = Router();
 
@@ -14,3 +15,4 @@ apiRouter.use("/slots", slotsRouter);
 apiRouter.use("/alarms", alarmsRouter);
 apiRouter.use("/remarks", remarksRouter);
 apiRouter.use("/routines", routinesRouter);
+apiRouter.use("/entries", entriesRouter);

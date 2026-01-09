@@ -14,3 +14,14 @@ alarmsRouter.get(
     return res.status(200).json(ok([], "ALARMS_HOME_OK", "ALARM_200"));
   }
 );
+
+// GET /api/alarms/:petId
+alarmsRouter.get(
+  "/:petId",
+  requireAccess,
+  (req: AuthedRequest, res: Response) => {
+    const petId = Number(req.params.petId);
+    // demo: 일단 빈 배열
+    return res.status(200).json(ok([], "ALARMS_OK", "ALARM_200"));
+  }
+);

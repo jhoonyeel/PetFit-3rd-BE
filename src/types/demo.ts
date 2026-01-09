@@ -29,8 +29,10 @@ export type DemoSession = {
   scenario: DemoSessionScenario;
   onboarding: { petDone: boolean; routineDone: boolean };
   pet?: Pet;
+  // petId -> slot
   slotByPetId: Record<number, Slot | undefined>;
-  routinesByPetId?: Record<Pet["id"], Record<string, Routine[] | undefined>>;
+  // petId -> date -> entry snapshot
+  entriesByPetId?: Record<number, Record<string, DailyEntry | undefined>>;
 };
 
 export type Routine = {
@@ -41,4 +43,24 @@ export type Routine = {
   actualAmount: number;
   content: string;
   date: string; // YYYY-MM-DD
+};
+
+export type Remark = {
+  remarkId: number;
+  title: string;
+  content: string;
+  remarkDate: string; // YYYY-MM-DD
+};
+
+export type DailyEntry = {
+  entryDate: string;
+  routineResponseList: Routine[];
+  remarkResponseList: Remark[];
+};
+
+export type MonthlyEntry = {
+  entryDate: string; // YYYY-MM-DD
+  completed: boolean; // 루틴 완료 여부
+  memo: boolean; // 메모 존재 여부
+  remarked: boolean; // 특이사항 존재 여부
 };

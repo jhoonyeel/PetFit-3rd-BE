@@ -59,28 +59,24 @@ slotsRouter.get(
   (req: AuthedRequest, res: Response) => {
     const { memberId } = req.auth!;
     const session = getSession(memberId);
-    const petId = Number(req.params.petId);
 
+    const petId = Number(req.params.petId);
     if (!Number.isFinite(petId)) {
       return res.status(400).json(fail("INVALID_PET_ID", "SLOT_400"));
     }
 
     // new 시나리오: 세션 펫이 없거나 id 불일치면 404
-    if (session.scenario === "new") {
-      if (!session.pet || session.pet.id !== petId) {
-        return res.status(404).json(fail("SLOT_NOT_FOUND", "SLOT_404"));
-      }
-      const slot = session.slotByPetId[petId];
-      if (!slot)
-        return res.status(404).json(fail("SLOT_NOT_FOUND", "SLOT_404"));
-      return res.status(200).json(ok(slot, "SLOT_OK", "SLOT_200"));
+    if (
+      session.scenario === "new" &&
+      (!session.pet || session.pet.id !== petId)
+    ) {
+      return res.status(404).json(fail("SLOT_NOT_FOUND", "SLOT_404"));
     }
 
-    // existing 시나리오: (데모 정책 선택)
-    // 1) 기존유저도 슬롯이 필요하면 기본값 제공
-    // 2) 아니면 404
     const slot = session.slotByPetId[petId];
-    if (!slot) return res.status(404).json(fail("SLOT_NOT_FOUND", "SLOT_404"));
+    if (!slot) {
+      return res.status(404).json(fail("SLOT_NOT_FOUND", "SLOT_404"));
+    }
     return res.status(200).json(ok(slot, "SLOT_OK", "SLOT_200"));
   }
 );
