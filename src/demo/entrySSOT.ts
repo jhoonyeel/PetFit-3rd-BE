@@ -20,6 +20,10 @@ export function buildYmd(ym: string, day: number) {
   return `${ym}-${pad2(day)}`;
 }
 
+export function toTodayYmd(d = new Date()) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 // 데모: 루틴ID 시퀀스(서버 재시작 시 초기화돼도 OK)
 let routineSeq = 1000;
 
@@ -101,7 +105,12 @@ export function buildRoutinesFromSlot(slot: Slot, date: string): Routine[] {
   return routines;
 }
 
-// ✅ SSOT: entriesByPetId에서 일간 엔트리 보장
+/**
+ * ✅ SSOT 정책 반영
+ * - 엔트리 없으면 생성
+ * - 엔트리 있는데 "루틴이 비어있고" slot이 있으면 그때만 채워넣기(업그레이드)
+ * - 루틴이 이미 존재하면(스냅샷) slot이 바뀌어도 덮어쓰지 않음
+ */
 export function ensureDailyEntry(
   session: DemoSession,
   petId: number,
@@ -110,19 +119,28 @@ export function ensureDailyEntry(
   session.entriesByPetId ??= {};
   session.entriesByPetId[petId] ??= {};
 
-  const cached = session.entriesByPetId[petId][date];
-  if (cached) return cached;
-
+  const dayMap = session.entriesByPetId[petId];
+  const cached = dayMap[date];
   const slot = session.slotByPetId[petId];
-  const routines = slot ? buildRoutinesFromSlot(slot, date) : [];
 
+  // 1) 이미 엔트리가 있는 경우: "루틴 비어있고 slot 있으면" 채우기
+  if (cached) {
+    if (cached.routineResponseList.length === 0 && slot) {
+      cached.routineResponseList = buildRoutinesFromSlot(slot, date);
+      // remarkResponseList는 유지(기록 스냅샷)
+      dayMap[date] = cached;
+    }
+    return cached;
+  }
+
+  // 2) 엔트리가 없으면 생성(슬롯 없으면 루틴은 빈 배열)
   const created: DailyEntry = {
     entryDate: date,
-    routineResponseList: routines,
+    routineResponseList: slot ? buildRoutinesFromSlot(slot, date) : [],
     remarkResponseList: [],
   };
 
-  session.entriesByPetId[petId][date] = created;
+  dayMap[date] = created;
   return created;
 }
 

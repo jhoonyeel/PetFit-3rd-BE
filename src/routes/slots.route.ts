@@ -3,6 +3,7 @@ import { AuthedRequest, requireAccess } from "../middlewares/requireAccess";
 import { getSession } from "../demo/store";
 import { Slot } from "../types/demo";
 import { fail, ok } from "../types/api";
+import { ensureDailyEntry, toTodayYmd } from "../demo/entrySSOT";
 
 export const slotsRouter = Router();
 
@@ -47,6 +48,10 @@ slotsRouter.post(
 
     session.slotByPetId[petId] = body;
     session.onboarding.routineDone = true; // ✅ 루틴 입력 완료를 slot init 완료로 간주
+
+    // ✅ 오늘 엔트리(이미 빈 엔트리로 존재할 수 있음)를 slot 기준으로 채워넣기
+    const today = toTodayYmd();
+    ensureDailyEntry(session, petId, today);
 
     return res.status(200).json(ok(null, "SLOT_INIT_OK", "SLOT_200"));
   }

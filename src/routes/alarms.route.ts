@@ -2,10 +2,12 @@ import { Response, Router } from "express";
 import { AuthedRequest, requireAccess } from "../middlewares/requireAccess";
 import { fail, ok } from "../types/api";
 import { getSession } from "../demo/store";
+import { Alarm } from "../types/demo";
 
 export const alarmsRouter = Router();
 
 // GET /api/alarms/:petId/home
+// 오늘 포함 최근 3일
 alarmsRouter.get(
   "/:petId/home",
   requireAccess,
@@ -17,7 +19,12 @@ alarmsRouter.get(
     if (!Number.isFinite(petId))
       return res.status(400).json(fail("INVALID_PET_ID", "ALARM_400"));
 
-    const alarms = session.alarmsByPetId?.[petId] ?? [];
+    const ymdSet = getRecentYmdSet(3);
+
+    const alarms: Alarm[] = (session.alarmsByPetId?.[petId] ?? [])
+      .filter((a) => ymdSet.has(extractYmdFromLocalDateTime(a.targetDateTime)))
+      .sort((a, b) => b.targetDateTime.localeCompare(a.targetDateTime));
+
     return res.status(200).json(ok(alarms, "ALARMS_HOME_OK", "ALARM_200"));
   }
 );
@@ -27,8 +34,14 @@ alarmsRouter.get(
   "/:petId",
   requireAccess,
   (req: AuthedRequest, res: Response) => {
+    const { memberId } = req.auth!;
+    const session = getSession(memberId);
+
     const petId = Number(req.params.petId);
-    // demo: 일단 빈 배열
-    return res.status(200).json(ok([], "ALARMS_OK", "ALARM_200"));
+    if (!Number.isFinite(petId))
+      return res.status(400).json(fail("INVALID_PET_ID", "ALARM_400"));
+
+    const alarms = session.alarmsByPetId?.[petId] ?? [];
+    return res.status(200).json(ok(alarms, "ALARMS_OK", "ALARM_200"));
   }
 );
