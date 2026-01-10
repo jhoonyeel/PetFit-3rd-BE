@@ -28,7 +28,9 @@ remarksRouter.get(
     for (const entry of Object.values(dayMap)) {
       if (!entry) continue;
       if (!ymdSet.has(entry.entryDate)) continue;
-      for (const r of entry.remarkResponseList) remarks.push(r);
+
+      const list = entry.remarkResponseList ?? [];
+      for (const r of list) remarks.push(r);
     }
 
     // 정렬: 날짜 최신→과거

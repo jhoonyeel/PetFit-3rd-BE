@@ -22,8 +22,11 @@ alarmsRouter.get(
     const ymdSet = getRecentYmdSet(3);
 
     const alarms: Alarm[] = (session.alarmsByPetId?.[petId] ?? [])
-      .filter((a) => ymdSet.has(extractYmdFromLocalDateTime(a.targetDateTime)))
-      .sort((a, b) => b.targetDateTime.localeCompare(a.targetDateTime));
+      .filter((a) => {
+        const ymd = extractYmdFromLocalDateTime(a.targetDateTime);
+        return ymd ? ymdSet.has(ymd) : false; // ✅ 파싱 실패 방어
+      })
+      .sort((a, b) => b.targetDateTime.localeCompare(a.targetDateTime)); // 최신순
 
     return res.status(200).json(ok(alarms, "ALARMS_HOME_OK", "ALARM_200"));
   }
