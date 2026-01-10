@@ -53,8 +53,5 @@ export const EXISTING_ALARM_TEMPLATES = [
   { title: "배변", content: "배변 상태 체크", hhmm: "21:30", read: false },
 ] as const;
 
-/** ✅ existing 시나리오에서 "점이 보이는 정도"로 찍을 날짜들(월별) */
-export const EXISTING_ENTRY_SEED_DAYS = [3, 8, 15, 22, 28] as const;
-
 /** ✅ existing 시나리오: 몇 개월치 시드할지 */
 export const EXISTING_ENTRY_SEED_MONTHS = 3;

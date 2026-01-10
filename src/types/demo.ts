@@ -45,9 +45,9 @@ export type DemoSession = {
   // petId -> slot
   slotByPetId: Record<number, Slot | undefined>;
   // petId -> date -> entry snapshot (Routine, Remark)
-  entriesByPetId?: Record<number, Record<string, DailyEntry | undefined>>;
+  entriesByPetId: Record<number, Record<string, DailyEntry | undefined>>;
   // petId -> alarms
-  alarmsByPetId?: Record<number, Alarm[] | undefined>;
+  alarmsByPetId: Record<number, Alarm[] | undefined>;
 };
 
 export const ROUTINE_CATEGORY = [

@@ -3,6 +3,7 @@ import { AuthedRequest, requireAccess } from "../middlewares/requireAccess";
 import { fail, ok } from "../types/api";
 import { Remark } from "../types/demo";
 import { getSession } from "../demo/store";
+import { ensureDailyEntry } from "../demo/entrySSOT";
 
 export const remarksRouter = Router();
 
@@ -20,22 +21,18 @@ remarksRouter.get(
     }
 
     const ymdSet = getRecentYmdSet(3);
-    const dayMap = session.entriesByPetId?.[petId] ?? {};
 
     const remarks: Remark[] = [];
 
-    // 최근 3일치 entry만 보고 remark 수집
-    for (const entry of Object.values(dayMap)) {
-      if (!entry) continue;
-      if (!ymdSet.has(entry.entryDate)) continue;
-
-      const list = entry.remarkResponseList ?? [];
-      for (const r of list) remarks.push(r);
+    // ✅ 최근 3일치 entry를 "존재 보장" 후 remark 수집
+    for (const ymd of ymdSet) {
+      const entry = ensureDailyEntry(session, petId, ymd);
+      for (const r of entry.remarkResponseList) remarks.push(r);
     }
 
-    // 정렬: 날짜 최신→과거
+    // ✅ 최신순(내림차순)
     remarks.sort((a, b) => b.remarkDate.localeCompare(a.remarkDate));
 
-    return res.status(200).json(ok([], "REMARKS_HOME_OK", "REMARK_200"));
+    return res.status(200).json(ok(remarks, "REMARKS_HOME_OK", "REMARK_200"));
   }
 );

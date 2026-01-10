@@ -4,6 +4,7 @@ import { getSession } from "../demo/store";
 import { Slot } from "../types/demo";
 import { fail, ok } from "../types/api";
 import { ensureDailyEntry, toTodayYmd } from "../demo/entrySSOT";
+import { DEMO_PETS_BY_MEMBER } from "../demo/data";
 
 export const slotsRouter = Router();
 
@@ -21,14 +22,17 @@ slotsRouter.post(
       return res.status(400).json(fail("INVALID_PET_ID", "SLOT_400"));
     }
 
-    // 선행조건: pet 등록 먼저
-    if (!session.pet) {
-      return res.status(409).json(fail("PET_REQUIRED_FIRST", "SLOT_409"));
-    }
-
-    // petId 정합성(온보딩에서는 세션에 1마리만 존재)
-    if (session.pet.id !== petId) {
-      return res.status(404).json(fail("PET_NOT_FOUND", "SLOT_404"));
+    // ✅ pet 정합성
+    if (session.scenario === "new") {
+      if (!session.pet)
+        return res.status(409).json(fail("PET_REQUIRED_FIRST", "SLOT_409"));
+      if (session.pet.id !== petId)
+        return res.status(404).json(fail("PET_NOT_FOUND", "SLOT_404"));
+    } else {
+      const pets = DEMO_PETS_BY_MEMBER[memberId] ?? [];
+      const exists = pets.some((p) => p.id === petId);
+      if (!exists)
+        return res.status(404).json(fail("PET_NOT_FOUND", "SLOT_404"));
     }
 
     // (최소) 형태 검증: boolean 키들만 체크해도 충분
@@ -46,12 +50,13 @@ slotsRouter.post(
       }
     }
 
+    // ✅ slot 최신값 저장
     session.slotByPetId[petId] = body;
-    session.onboarding.routineDone = true; // ✅ 루틴 입력 완료를 slot init 완료로 간주
+    session.onboarding.routineDone = true;
 
-    // ✅ 오늘 엔트리(이미 빈 엔트리로 존재할 수 있음)를 slot 기준으로 채워넣기
+    // ✅ 정책: slot 변경 시 "당일 루틴 초기화"
     const today = toTodayYmd();
-    ensureDailyEntry(session, petId, today);
+    ensureDailyEntry(session, petId, today, { forceRebuildRoutines: true });
 
     return res.status(200).json(ok(null, "SLOT_INIT_OK", "SLOT_200"));
   }
